@@ -43,12 +43,13 @@ def query_from_jlc():
     body['pageVo']['pageNum'] = 1
     body['pageVo']['pageSize'] = 2000
     body['queryString'] = query_string
-    body['baseQueryDto']['componentSpecificationList'][0] = '0402'
+    body['baseQueryDto']['componentSpecificationList'][0] = '0603'
     body = json.dumps(body)
 
     rc = s.post(url, headers=headers, cookies=cookies, data=body)
     response_json = json.loads(rc.content)
     data_list = response_json['data']['data']
+    # print(data_list)
     return data_list
 
 
@@ -58,7 +59,7 @@ def parse_result(data_list):
         name = item['componentName']
         code = item['componentCode']
         if 'Ω' in name:
-            value = name.split('Ω')[0]
+            value = name.split('Ω')[0].split(' ')[-1]
             scale = 1
             if value.endswith('K') or value.endswith('k'):
                 scale = 1000
@@ -72,12 +73,13 @@ def parse_result(data_list):
             value = float(value) * scale
             if value != 0:
                 values.append((value, code))
+    print(values)
     return values
 
 
-target_v_out = 25
-v_error = 0.3
-v_ref = 1.233
+target_v_out = 3.3
+v_error = 0.1
+v_ref = 0.5
 
 
 def print_matched_result(values):
@@ -85,7 +87,7 @@ def print_matched_result(values):
     for r1, code1 in values:
         for r2, code2 in values:
             v_out = v_out_calc(r1, r2, v_ref)
-            if match_v_out(v_out):
+            if match_v_out(v_out) and r2>100*1000:
                 feedback_current = v_out / (r1 + r2) * 1000 * 1000
                 # noinspection SpellCheckingInspection
                 print(

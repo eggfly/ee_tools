@@ -65,9 +65,9 @@ R_VALUES = (
 32.4,     97.6,     330,     976,     3.3*K,      10.2*K,     33.6*K,     105*K,      348*K)
 
 # 参数
-Vout = 12
+Vout = 3.3
 Verror = 0.05
-Vref = 1.2
+Vref = 0.5
 
 # 电压输出公式
 def Vout_calc(R1, R2, ref):
