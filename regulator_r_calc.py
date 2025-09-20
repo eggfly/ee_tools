@@ -2,6 +2,7 @@ import requests
 import json  
 import time
 import re
+import brotli
 
 def get_jlc_session(packaging: str, pageNum: int, isFreeExtendLib: bool):
     s = requests.Session()
@@ -21,24 +22,36 @@ def get_jlc_session(packaging: str, pageNum: int, isFreeExtendLib: bool):
         'Sec-Fetch-Mode': 'cors',  
         'sec-ch-ua-mobile': '?0',  
         'Content-Type': 'application/json',  
-        'Origin': 'https://www.jlcsmt.com',  
-        'Host': 'www.jlcsmt.com',  
-        'Referer': 'https://www.jlcsmt.com/',  
+        'Origin': 'https://www.jlc-smt.com',  
+        'Host': 'www.jlc-smt.com',
+        'Referer': 'https://www.jlc-smt.com/',
+        'x-xsrf-token': '98ccc5b1-114a-47f6-9fa6-f459e3ed0acd'
     }  
 
-    url = 'https://www.jlcsmt.com/api/smtComponentOrder/componentSearchController/selectPasteComponentList'  
+    url = 'https://www.jlc-smt.com/api/smtComponentOrder/componentSearchController/selectPasteComponentList'  
     # ascFlag -> ?
-    body = ''
-    if isFreeExtendLib:
-        # 合作优选，扩展库
-        body = '''{"ascFlag":false,"baseQueryDto":{"componentBrandList":[],"componentSpecificationList":["0402"],"componentTypeIdList":[439],"preferredComponentFlagList":["true"],"orderLibraryTypeList":["expand"],"packageTypeList":[],"productTypeIdList":[308]},"groupFlag":false,"pageVo":{"pageNum":1,"pageSize":10},"paramDtoList":[],"queryString":"","sortMode":"COMPREHENSIVE"}'''
-    else:
-        body = '''{"ascFlag":true,"baseQueryDto":{"componentBrandList":[],"componentSpecificationList":["0603"],"componentTypeIdList":[439],"preferredComponentFlagList":["false"],"orderLibraryTypeList":["base"],"packageTypeList":[],"productTypeIdList":[308],"inStockFlag":false},"groupFlag":false,"pageVo":{"pageNum":1,"pageSize":10},"paramDtoList":[],"queryString":"","sortMode":"COMPREHENSIVE"}'''
-    body = body.encode('utf-8')
-    body = json.loads(body)
-    body['pageVo']['pageNum'] = pageNum
-    # body['queryString'] = "Ω"
-    body['baseQueryDto']['componentSpecificationList'][0] = packaging # 0603, 0402, 0805...
+    # 构建请求体
+    body = {
+        "ascFlag": False,
+        "baseQueryDto": {
+            "componentBrandList": [],
+            "componentSpecificationList": [packaging],  # 使用传入的包装规格
+            "componentTypeIdList": [439],  # 电阻类型
+            "preferredComponentFlagList": ["true"] if isFreeExtendLib else ["false"],
+            "orderLibraryTypeList": ["expand"] if isFreeExtendLib else ["base"],
+            "packageTypeList": [],
+            "productTypeIdList": [308],
+            "inStockFlag": False
+        },
+        "groupFlag": False,
+        "pageVo": {
+            "pageNum": pageNum,
+            "pageSize": 10
+        },
+        "paramDtoList": [],
+        "queryString": "",
+        "sortMode": "COMPREHENSIVE"
+    }
     return s, url, body
 
 def get_component_list(packaging: str, isFreeExtendLib: bool):
@@ -52,7 +65,23 @@ def get_component_list(packaging: str, isFreeExtendLib: bool):
         if response.status_code != 200:
             print(f"Failed to query, status code: {response.status_code}")
             break  
-        response_json = response.json()  
+        try:
+            # 检查是否是 Brotli 压缩
+            if response.headers.get('content-encoding') == 'br':
+                # 手动解压 Brotli 内容
+                try:
+                    decompressed_content = brotli.decompress(response.content)
+                    response_text = decompressed_content.decode('utf-8')
+                    response_json = json.loads(response_text)
+                except brotli.error:
+                    # 如果 Brotli 解压失败，尝试直接解析响应文本
+                    response_json = response.json()
+            else:
+                response_json = response.json()
+        except json.JSONDecodeError as e:
+            print(f"JSON decode error: {e}")
+            print(f"Response content: {response.text}")
+            break  
         if response_json.get('code') != 200:
             print(f"Failed to query, response: {response_json}")
             break
@@ -110,9 +139,9 @@ def parse_result(data_list):
     return values  
 
 
-target_v_out = 5.1
-v_error = 0.3
-v_ref = 0.6
+target_v_out = 5.15
+v_error = 0.1
+v_ref = 1.2
 
 def match_extra(r2):
     return r2 > 10 * 1000
