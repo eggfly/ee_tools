@@ -139,9 +139,9 @@ def parse_result(data_list):
     return values  
 
 
-target_v_out = 5.15
-v_error = 0.1
-v_ref = 1.2
+target_v_out = 4.6
+v_error = 0.3
+v_ref = 0.55
 
 def match_extra(r2):
     return r2 > 10 * 1000
